@@ -1,0 +1,3 @@
+#!/bin/bash
+
+python -m space_diary.celery $@

@@ -1,0 +1,85 @@
+#!/usr/bin/env python
+
+import argparse
+import os
+import sys
+from colorama import Fore, init
+from pathlib import Path
+
+init(autoreset=True)
+
+supervisord_config = """[program:%(program_name)s]
+command=%(virtualenv_path)s/bin/celery --app=space_diary.celery worker
+autostart=true
+autorestart=true
+startsecs=10
+stopwaitsecs=600
+environment=SPACE_DIARY_CONFIG=%(config_path)s
+"""
+
+space_diary_config = """
+couch_db_host: http://localhost:5984/
+broker_url: redis://
+"""
+
+
+def main():
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-s", "--supervisor-config-directory", action='store',
+        help="Path to the supervisor config directory, "
+             "default: /etc/supervisord/conf.d/",
+        default="/etc/supervisord/conf.d/")
+
+    parser.add_argument(
+        "-p", "--supervisord-program-name", action='store',
+        help="Name in supervisord for this product, "
+             "default: space_diary",
+        default="space_diary"
+    )
+
+    parser.add_argument(
+        "-v", "--virtualenv", action='store',
+        help="Path to virtualenv",
+        default=str(Path(os.path.dirname(__file__)).parent)
+    )
+
+    parser.add_argument("-c", "--config-path",
+                        help="path to install default configuration, "
+                             "default: /etc/space_diary/space_diary.conf",
+                        default="/etc/space_diary/space_diary.conf")
+
+    args = parser.parse_args()
+    virtualenv_bin_path = os.path.abspath(args.virtualenv)
+
+    if not os.path.exists(args.supervisor_config_directory):
+        print("Path `%s` does not exists. Cannot install "
+              "supervisord configuration")
+    else:
+        supervisord_config_path = os.path.realpath(os.path.join(
+            args.supervisor_config_directory,
+            args.supervisord_program_name))
+        if not os.path.exists(supervisord_config_path):
+            with open(supervisord_config_path, 'w') as supervisord_config_file:
+                supervisord_config_file.write(
+                    supervisord_config % {
+                        "program_name": args.supervisord_program_name,
+                        "virtualenv_path": os.path.abspath(args.virtualenv),
+                        "config_path": os.path.abspath(args.config_path)
+                        }
+                )
+        else:
+            print(Fore.BLUE, "Config %s already exists, not overwriting."
+                             % supervisord_config_path)
+
+        if not os.path.exists(args.config_path):
+            with open(args.config_path, "w") as config_file:
+                config_file.write(space_diary_config)
+        else:
+            print(Fore.BLUE, "Config %s already exists, not overwriting."
+                             % args.config_path)
+
+
+if __name__ == "__main__":
+    main()

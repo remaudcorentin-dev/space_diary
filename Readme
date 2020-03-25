@@ -1,0 +1,131 @@
+
+Space Diary
+===========
+
+This service stores all requests to Space API but GET, with full request body.
+It is based on Celery, which allows as to have multiple workers and a task queue.
+On the API side the process is almost transparent and asynchronous.
+
+Requirements
+------------
+
+- running instance of redis
+- running instance of couchdb
+
+Installation
+------------
+
+To install space diary create first a virtual environment for it.
+
+    virtualenv /usr/local/virtual_envs/space_diary
+
+Then activate it.
+
+    source /usr/local/virtual_envs/space_diary/bin/activate
+
+After that install space diary:
+
+    pip install git+ssh://atrium2@10.63.150.1:/home/space_diary/space_diary#egg=space_diary
+
+Install default configuration files:
+
+    space_diary_config_install -s /etc/supervisord/ -c /etc/space_diary.conf
+
+Restart supervisor. _(Maybe it should be supervisord here)_
+
+    service supervisor restart
+
+Or you can run it manually to see if the installation worked:
+
+    space_diary --app=space_diary.celery worker
+
+### SPACE API Integration
+
+To be sure that everything works as it should be, add environment var to django app as well in it's supervisord configuration.
+
+    ENVIRONMENT=SPACE_DIARY_CONFIG=/etc/space_diary.conf
+
+Commands
+------------
+
+### space_diary_config_install
+
+This script install the basic configuration files required for installation.
+
+Typical usage:
+
+    space_diary_config_install -s /etc/supervisord/ -c /etc/space_diary.conf
+
+Help:
+
+    usage: space_diary_config_install [-h] [-s SUPERVISOR_CONFIG_DIRECTORY]
+                                      [-p SUPERVISORD_PROGRAM_NAME]
+                                      [-v VIRTUALENV] [-c CONFIG_PATH]
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      -s SUPERVISOR_CONFIG_DIRECTORY, --supervisor-config-directory SUPERVISOR_CONFIG_DIRECTORY
+                            Path to the supervisor config directory, default:
+                            /etc/supervisord/conf.d/
+      -p SUPERVISORD_PROGRAM_NAME, --supervisord-program-name SUPERVISORD_PROGRAM_NAME
+                            Name in supervisord for this product, default:
+                            space_diary
+      -v VIRTUALENV, --virtualenv VIRTUALENV
+                            Path to virtualenv
+      -c CONFIG_PATH, --config-path CONFIG_PATH
+                            path to install default configuration, default:
+                            /etc/space_diary/space_diary.conf
+
+### space_diary
+
+Shortcut for celery CLI
+
+By default it should be run like that:
+
+    space_diary --app=space_diary.celery worker
+
+Help:
+
+    Usage: celery.py <command> [options]
+
+    Show help screen and exit.
+
+    Options:
+      -A APP, --app=APP     app instance to use (e.g. module.attr_name)
+      -b BROKER, --broker=BROKER
+                            url to broker.  default is 'amqp://guest@localhost//'
+      --loader=LOADER       name of custom loader class to use.
+      --config=CONFIG       Name of the configuration module
+      --workdir=WORKING_DIRECTORY
+                            Optional directory to change to after detaching.
+      -C, --no-color
+      -q, --quiet
+      --version             show program's version number and exit
+      -h, --help            show this help message and exit
+
+
+Configuration files
+-------------------
+
+Configuration file argument is passed by environment
+variable `SPACE_DIARY_CONFIG`.
+
+### /etc/space_diary.conf
+
+Format: yaml
+
+    # url to couch db
+    couch_db_host: http://localhost:5984/
+    # borker url for celery
+    broker_url: redis://
+
+This is a basic example, no other options are needed, but still some other options are available to pass to Celery:
+
+**WARNING: Be careful with these options as you can easily break everything. :WARNING**
+
+
+    CELERY_ENABLE_UTC = True
+    CELERY_TIMEZONE = "Europe/Paris"
+    CELERY_ACCEPT_CONTENT = ['json']
+    CELERY_TASK_SERIALIZER = 'json'
+    CELERY_RESULT_SERIALIZER = 'json'
